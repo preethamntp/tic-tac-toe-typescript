@@ -12,6 +12,7 @@ import Board from "./Board";
 import { getRandomInt, switchPlayer } from "./utils";
 import { border } from "./styles";
 import { ResultModal } from "./ResultModal";
+import PlayerSelect from "./PlayerSelect";
 
 const arr: number[] | null[] = new Array(DIMENSIONS ** 2).fill(null);
 const board = new Board();
@@ -21,9 +22,11 @@ interface Props {
 }
 
 const TicTacToe = ({ squares = arr }: Props) => {
+  const [manualMode, setManualMode] = useState<boolean>(true);
   const [players, setPlayers] = useState<Record<string, number | null>>({
     human: null,
     ai: null,
+    humanTwo: null,
   });
   const [gameState, setGameState] = useState<string>(GAME_STATES.notStarted);
   const [grid, setGrid] = useState(squares);
@@ -31,7 +34,9 @@ const TicTacToe = ({ squares = arr }: Props) => {
   const [nextMove, setNextMove] = useState<null | number>(null);
   const [modalOpen, setModalOpen] = useState(false);
   //   const [mode, setMode] = useState(GAME_MODES.medium);
-
+  const yourPlayer = players.human === 1 ? "PLAYER_X" : "PLAYER_O";
+  const aiPlayer = players.ai === 1 ? "PLAYER_X" : "PLAYER_O";
+  const humanTwoPlayer = players.humanTwo === 1 ? "PLAYER_X" : "PLAYER_O";
   useEffect(() => {
     const boardWinner = board.getWinner(grid);
 
@@ -75,7 +80,15 @@ const TicTacToe = ({ squares = arr }: Props) => {
   const humanMove = (index: number) => {
     if (!grid[index] && nextMove === players.human) {
       move(index, players.human);
-      setNextMove(players.ai);
+      if (manualMode) {
+        setNextMove(players.humanTwo);
+      } else {
+        setNextMove(players.ai);
+      }
+    }
+    if (!grid[index] && nextMove === players.humanTwo) {
+      move(index, players.humanTwo);
+      setNextMove(players.human);
     }
   };
 
@@ -109,9 +122,13 @@ const TicTacToe = ({ squares = arr }: Props) => {
   }, [nextMove, aiMove, players.ai, gameState]);
 
   const choosePlayer = (option: number) => {
-    setPlayers({ human: option, ai: switchPlayer(option) });
-    setGameState(GAME_STATES.inProgress);
+    if (manualMode) {
+      setPlayers({ human: option, humanTwo: switchPlayer(option) });
+    } else {
+      setPlayers({ human: option, ai: switchPlayer(option) });
+    }
     setNextMove(PLAYER_X);
+    setGameState(GAME_STATES.inProgress);
   };
 
   const startNewGame = () => {
@@ -120,50 +137,68 @@ const TicTacToe = ({ squares = arr }: Props) => {
     setModalOpen(false);
   };
 
-  /*  const changeMode = (e: React.ChangeEvent<HTMLSelectElement>) => {
-    setMode(e.target.value);
-  }; */
+  const reStartGame = () => {
+    setGameState(GAME_STATES.inProgress);
+    setGrid(arr);
+    setModalOpen(false);
+  };
+
+  const changePlayer = ({ value }: HTMLInputElement) => {
+    setManualMode(value === "human" ?? true);
+  };
 
   return gameState === GAME_STATES.notStarted ? (
     <div>
       <Inner>
         <p>Choose your player</p>
+        <h1>Please choose your player</h1>
         <ButtonRow>
           <button onClick={() => choosePlayer(PLAYER_X)}>X</button>
           <p>or</p>
           <button onClick={() => choosePlayer(PLAYER_O)}>O</button>
         </ButtonRow>
+        <PlayerSelect onChangeHandler={changePlayer} manualMode={manualMode} />
       </Inner>
     </div>
   ) : (
-    <Container dims={DIMENSIONS}>
-      {grid.map((value, index) => {
-        const isActive = value !== null;
+    <main>
+      <h3>
+        You have chosen to be:&nbsp;
+        {yourPlayer}
+      </h3>
+      <h4>
+        your oponent is:&nbsp;
+        {manualMode ? `Human as ${humanTwoPlayer}}` : `AI as ${aiPlayer}}`}
+      </h4>
+      <Container dims={DIMENSIONS}>
+        {grid.map((value, index) => {
+          const isActive = value !== null;
 
-        return (
-          <Square
-            data-testid={`square_${index}`}
-            key={index}
-            onClick={() => humanMove(index)}
-          >
-            {isActive && <Marker>{value === PLAYER_X ? "X" : "O"}</Marker>}
-          </Square>
-        );
-      })}
-      <Strikethrough
-        styles={
-          // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
-          gameState === GAME_STATES.over ? board.getStrikethroughStyles() : ""
-        }
-      />
-      <ResultModal
-        isOpen={modalOpen}
-        winner={winner}
-        close={() => setModalOpen(false)}
-        startNewGame={startNewGame}
-      />
-      <Button onClick={startNewGame}>ReStart</Button>
-    </Container>
+          return (
+            <Square
+              data-testid={`square_${index}`}
+              key={index}
+              onClick={() => humanMove(index)}
+            >
+              {isActive && <Marker>{value === PLAYER_X ? "X" : "O"}</Marker>}
+            </Square>
+          );
+        })}
+        <Strikethrough
+          styles={
+            // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
+            gameState === GAME_STATES.over ? board.getStrikethroughStyles() : ""
+          }
+        />
+        <ResultModal
+          isOpen={modalOpen}
+          winner={winner}
+          close={() => setModalOpen(false)}
+          startNewGame={startNewGame}
+        />
+        <Button onClick={reStartGame}>ReStart</Button>
+      </Container>
+    </main>
   );
 };
 
